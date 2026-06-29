@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trip Expenses">
+<meta name="theme-color" content="#0f0f0f">
+<title>Bali Expense Tracker</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f0f0f;--card:#1a1a1a;--card2:#222;--border:#2a2a2a;
+    --text:#ffffff;--text2:#aaaaaa;--text3:#666;
+    --accent:#2a78d6;--accent-bg:#1a2a3a;--accent-text:#5b9ef7;
+    --success:#1baf7a;--success-bg:#0f2a1f;--success-text:#3dd68c;
+    --warning:#eda100;--warning-bg:#2a2000;--warning-text:#ffc340;
+    --danger:#e34948;--danger-bg:#2a1010;--danger-text:#f47;
+    --radius:10px;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;overflow:hidden}
+  .app{max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+
+  /* HEADER */
+  .header{padding:env(safe-area-inset-top,16px) 18px 14px;background:var(--card);border-bottom:0.5px solid var(--border);flex-shrink:0}
+  .header-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .h-title{font-size:13px;color:var(--text3);margin-bottom:3px;font-weight:400}
+  .h-total{font-size:34px;font-weight:600;letter-spacing:-1.5px;line-height:1}
+  .h-sub{font-size:13px;color:var(--success-text);margin-top:5px;font-weight:500}
+  .h-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding-top:4px}
+  .trip-badge{font-size:11px;padding:3px 10px;border-radius:20px;background:var(--success-bg);color:var(--success-text);font-weight:600;letter-spacing:0.5px}
+  .pending-badge{font-size:11px;color:var(--text3);display:none;align-items:center;gap:4px}
+
+  /* TABS */
+  .tabs{display:flex;background:var(--card);border-bottom:0.5px solid var(--border);flex-shrink:0}
+  .tab{flex:1;font-size:13px;padding:11px 4px;text-align:center;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s}
+  .tab.active{color:var(--accent-text);border-bottom-color:var(--accent)}
+
+  /* CONTENT */
+  .content{flex:1;overflow-y:auto;padding:12px 16px 90px;-webkit-overflow-scrolling:touch}
+
+  /* CARDS */
+  .card{background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:10px}
+  .sl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin:14px 0 7px;display:flex;justify-content:space-between;font-weight:500}
+
+  /* EXPENSE ITEMS */
+  .exp-row{display:flex;align-items:center;gap:11px}
+  .cat-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .exp-info{flex:1;min-width:0}
+  .exp-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .exp-meta{font-size:11px;color:var(--text3);margin-top:2px}
+  .loc-btn{background:none;border:none;cursor:pointer;color:var(--accent-text);font-size:11px;display:flex;align-items:center;gap:3px;padding:0;margin-top:3px;font-family:inherit}
+  .exp-right{text-align:right;flex-shrink:0}
+  .exp-amt{font-size:15px;font-weight:600}
+  .exp-inr{font-size:11px;color:var(--text3)}
+  .del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:2px;margin-top:3px;display:block;margin-left:auto}
+
+  /* FILTER CHIPS */
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{font-size:11px;padding:4px 11px;border-radius:20px;border:0.5px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit}
+  .chip.active{background:var(--accent-bg);border-color:var(--accent);color:var(--accent-text)}
+
+  /* BANNERS */
+  .warn-bar{background:var(--warning-bg);border:0.5px solid var(--warning);border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--warning-text)}
+
+  /* STATS */
+  .stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+  .stat{background:var(--card);border-radius:var(--radius);padding:12px;border:0.5px solid var(--border)}
+  .stat-l{font-size:11px;color:var(--text3);margin-bottom:4px}
+  .stat-v{font-size:20px;font-weight:600}
+  .stat-s{font-size:11px;color:var(--text2);margin-top:2px}
+
+  /* BUDGET */
+  .prog-bar-bg{height:7px;background:var(--bg);border-radius:4px;overflow:hidden;margin:7px 0 4px}
+  .prog-bar{height:100%;border-radius:4px;transition:width .4s}
+  .prog-footer{display:flex;justify-content:space-between;font-size:11px;color:var(--text3)}
+  .bgt-edit{display:flex;gap:7px;align-items:center;margin-top:10px}
+  .bgt-inp{flex:1;padding:7px 10px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none}
+  .bgt-inp:focus{border-color:var(--accent)}
+  .bgt-save{padding:7px 14px;border-radius:var(--radius);background:var(--accent);border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:500}
+
+  /* SETTINGS */
+  .set-row{background:var(--card);border-radius:14px;border:0.5px solid var(--border);padding:14px;margin-bottom:10px}
+  .set-title{font-size:14px;font-weight:500}
+  .set-sub{font-size:12px;color:var(--text3);margin-top:4px}
+  .btn-row{display:flex;gap:7px;flex-wrap:wrap}
+  .curr-btn{padding:7px 14px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;cursor:pointer;font-family:inherit}
+  .curr-btn.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-text);font-weight:500}
+  .danger-btn{width:100%;padding:12px;border-radius:12px;border:0.5px solid var(--danger);background:var(--danger-bg);color:var(--danger-text);font-size:14px;cursor:pointer;font-weight:500;margin-bottom:8px;font-family:inherit}
+  .neutral-btn{width:100%;padding:12px;border-radius:12px;border:0.5px solid var(--border);background:var(--card2);color:var(--text);font-size:14px;cursor:pointer;margin-bottom:8px;font-family:inherit}
+  .txt-inp{width:100%;padding:9px 12px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;font-family:inherit;outline:none;margin-top:6px}
+  .txt-inp:focus{border-color:var(--accent)}
+  .rate-section{background:var(--bg);border-radius:var(--radius);border:0.5px solid var(--border);padding:10px 12px;margin-top:10px}
+  .rate-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:13px}
+  .rate-key{color:var(--text2)}
+  .rate-val{color:var(--text);font-weight:500;font-family:'SF Mono',monospace}
+
+  /* TOGGLE */
+  .toggle{display:inline-block;width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;vertical-align:middle}
+  .toggle.on{background:var(--accent)}
+  .toggle.off{background:#333}
+  .toggle::after{content:'';position:absolute;top:3px;width:16px;height:16px;border-radius:8px;background:#fff;transition:left .18s}
+  .toggle.on::after{left:21px}
+  .toggle.off::after{left:3px}
+  .bgt-disabled{opacity:0.35;pointer-events:none}
+
+  /* BOTTOM NAV */
+  .bnav{display:flex;background:var(--card);border-top:0.5px solid var(--border);padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 6px);flex-shrink:0}
+  .nitem{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 0}
+  .nic{font-size:22px;color:var(--text3)}
+  .nic.active{color:var(--accent-text)}
+  .nlb{font-size:9px;color:var(--text3);font-weight:400}
+  .nlb.active{color:var(--accent-text)}
+  .add-btn-nav{width:50px;height:50px;border-radius:25px;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;margin-top:-16px;box-shadow:0 4px 16px rgba(42,120,214,0.4)}
+
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100;display:flex;align-items:flex-end}
+  .modal{background:var(--card);border-radius:22px 22px 0 0;padding:20px 20px calc(env(safe-area-inset-bottom,0px) + 24px);width:100%;max-height:90vh;overflow-y:auto}
+  .mhandle{width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 18px}
+  .mtitle{font-size:18px;font-weight:600;margin-bottom:16px}
+  .amt-row{display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--accent);padding-bottom:10px;margin-bottom:16px}
+  .curr-sel{font-size:15px;font-weight:600;color:var(--accent-text);background:var(--accent-bg);border:none;border-radius:8px;padding:5px 8px;cursor:pointer;outline:none;font-family:inherit}
+  .amt-inp{font-size:32px;font-weight:600;border:none;background:transparent;color:var(--text);width:100%;outline:none;font-family:inherit}
+  .flabel{font-size:12px;color:var(--text2);margin-bottom:5px;font-weight:500}
+  .fgroup{margin-bottom:12px}
+  .cat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:12px}
+  .cbt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 4px;border-radius:10px;border:0.5px solid var(--border);background:var(--card2);cursor:pointer;font-size:10px;color:var(--text2);font-family:inherit}
+  .cbt.sel{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-text)}
+  .cbt-ic{font-size:18px}
+  .loc-display{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--radius);border:0.5px solid var(--border);background:var(--bg);margin-bottom:12px}
+  .loc-text{flex:1;font-size:12px;color:var(--text2)}
+  .loc-s{font-size:11px;font-weight:500}
+  .loc-s.ok{color:var(--success-text)}
+  .loc-s.err{color:var(--danger-text)}
+  .loc-s.loading{color:var(--text3)}
+  .get-loc-btn{font-size:11px;padding:5px 10px;border-radius:8px;border:0.5px solid var(--accent);background:var(--accent-bg);color:var(--accent-text);cursor:pointer;white-space:nowrap;font-family:inherit}
+  .sub-btn{width:100%;padding:15px;border-radius:14px;background:var(--accent);border:none;color:#fff;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;font-family:inherit}
+  .cancel-btn{width:100%;padding:10px;border:none;background:none;color:var(--text3);cursor:pointer;font-size:14px;margin-top:4px;font-family:inherit}
+
+  /* CHARTS */
+  .chart-container{position:relative;width:100%;height:140px}
+  .donut-wrap{display:flex;align-items:center;gap:16px}
+  .donut-labels{flex:1;display:flex;flex-direction:column;gap:6px}
+  .dl-row{display:flex;align-items:center;gap:6px;font-size:12px}
+  .dl-sw{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .dl-name{color:var(--text2);flex:1}
+  .dl-pct{color:var(--text);font-weight:600}
+
+  .empty{text-align:center;padding:48px 20px;color:var(--text3);font-size:14px}
+  .empty-icon{font-size:36px;display:block;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="h-title" id="h-title">Bali 2026 · expenses</div>
+        <div class="h-total" id="h-total">₹0</div>
+        <div class="h-sub" id="h-sub">0 expenses logged</div>
+      </div>
+      <div class="h-right">
+        <div class="trip-badge">TRIP MODE</div>
+        <div class="pending-badge" id="pending-hdr">
+          <span>⏳</span><span id="pending-txt"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="activity" onclick="sw('activity',this)">Activity</div>
+    <div class="tab" data-tab="summary" onclick="sw('summary',this)">Summary</div>
+    <div class="tab" data-tab="budget" onclick="sw('budget',this)">Budget</div>
+    <div class="tab" data-tab="settings" onclick="sw('settings',this)">Settings</div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <div class="bnav">
+    <div class="nitem" onclick="sw('activity')">
+      <span class="nic active" id="ni-activity">☰</span>
+      <span class="nlb active" id="nl-activity">Activity</span>
+    </div>
+    <div class="nitem" onclick="sw('summary')">
+      <span class="nic" id="ni-summary">◎</span>
+      <span class="nlb" id="nl-summary">Summary</span>
+    </div>
+    <div class="nitem" style="justify-content:flex-start">
+      <button class="add-btn-nav" onclick="openModal()" aria-label="Add expense">+</button>
+    </div>
+    <div class="nitem" onclick="sw('budget')">
+      <span class="nic" id="ni-budget">◈</span>
+      <span class="nlb" id="nl-budget">Budget</span>
+    </div>
+    <div class="nitem" onclick="sw('settings')">
+      <span class="nic" id="ni-settings">⚙</span>
+      <span class="nlb" id="nl-settings">Settings</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbzwj7omPiyazuDTtq99N4ihWkFuKN1ISWRwX_QJ1PvII8aHutcpuw3_TAfCZCitiwF7/exec';
+const CATS=[
+  {id:'food',label:'Food',icon:'🍜',color:'#2a78d6'},
+  {id:'transport',label:'Transport',icon:'🛵',color:'#1baf7a'},
+  {id:'hotel',label:'Hotel',icon:'🏨',color:'#4a3aa7'},
+  {id:'shopping',label:'Shopping',icon:'🛍️',color:'#eda100'},
+  {id:'activities',label:'Activities',icon:'🤿',color:'#e87ba4'},
+  {id:'medical',label:'Medical',icon:'💊',color:'#e34948'},
+  {id:'misc',label:'Misc',icon:'📦',color:'#888780'},
+  {id:'other',label:'Other',icon:'✏️',color:'#eb6834'}
+];
+const CURR=['IDR','INR','MYR'];
+
+let expenses=JSON.parse(localStorage.getItem('bali_exp')||'[]');
+let pending=JSON.parse(localStorage.getItem('bali_pend')||'[]');
+let budgets=JSON.parse(localStorage.getItem('bali_bgt')||'{"IDR":5000000,"INR":50000,"MYR":2000}');
+let budgetEnabled=JSON.parse(localStorage.getItem('bali_bgt_en')||'{"IDR":true,"INR":true,"MYR":true}');
+let cfg=JSON.parse(localStorage.getItem('bali_cfg')||'{"trip":"Bali 2026","defCurr":"IDR","autoSync":true}');
+let rates={IDR:0.0056,INR:1,MYR:17.2};
+let ratesLive=false;
+let ratesUpdated='—';
+let currentTab='activity';
+let filterCat='all';
+let selCat='food';
+let selCurr='IDR';
+let modalLat=null;
+let modalLng=null;
+let modalAddr='';
+let chartL=null;
+let chartD=null;
+
+function persist(){
+  localStorage.setItem('bali_exp',JSON.stringify(expenses));
+  localStorage.setItem('bali_pend',JSON.stringify(pending));
+  localStorage.setItem('bali_bgt',JSON.stringify(budgets));
+  localStorage.setItem('bali_bgt_en',JSON.stringify(budgetEnabled));
+  localStorage.setItem('bali_cfg',JSON.stringify(cfg));
+}
+
+function catBy(id){return CATS.find(c=>c.id===id)||CATS[6];}
+
+function fmtAmt(amt,curr){
+  if(curr==='IDR') return 'Rp '+Math.round(amt).toLocaleString();
+  if(curr==='INR') return '₹'+Math.round(amt).toLocaleString();
+  if(curr==='MYR') return 'RM '+parseFloat(amt).toFixed(2);
+  return String(amt);
+}
+
+function toINR(amt,curr){return amt*(rates[curr]||1);}
+function totalINR(exps){return exps.reduce((s,e)=>s+toINR(e.amount,e.currency),0);}
+
+async function fetchRates(){
+  try{
+    const r=await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/inr.json');
+    const d=await r.json();
+    if(d&&d.inr){
+      const idr=d.inr.idr;
+      const myr=d.inr.myr;
+      if(idr&&myr){
+        rates.IDR=1/idr;
+        rates.MYR=1/myr;
+        rates.INR=1;
+        ratesLive=true;
+        ratesUpdated=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+        renderTab();
+      }
+    }
+  }catch(e){}
+}
+
+function updateHeader(){
+  const tot=totalINR(expenses);
+  document.getElementById('h-title').textContent=(cfg.trip||'Trip')+' · expenses';
+  document.getElementById('h-total').textContent='₹'+Math.round(tot).toLocaleString()+' equiv.';
+  document.getElementById('h-sub').textContent=expenses.length+' expense'+(expenses.length!==1?'s':'')+' logged';
+  const ph=document.getElementById('pending-hdr');
+  const pt=document.getElementById('pending-txt');
+  if(pending.length){ph.style.display='flex';pt.textContent=pending.length+' pending sync';}
+  else{ph.style.display='none';}
+}
+
+function renderActivity(){
+  let fil=filterCat==='all'?expenses:expenses.filter(e=>e.category===filterCat);
+  let h='';
+  if(pending.length) h+=`<div class="warn-bar">⚠ ${pending.length} pending sync — uploads when online</div>`;
+  h+=`<div class="chips"><div class="chip ${filterCat==='all'?'active':''}" onclick="fc('all')">All</div>`;
+  CATS.forEach(c=>h+=`<div class="chip ${filterCat===c.id?'active':''}" onclick="fc('${c.id}')">${c.icon} ${c.label}</div>`);
+  h+='</div>';
+  if(!fil.length) return h+`<div class="empty"><span class="empty-icon">🧾</span>No expenses yet<br><span style="font-size:12px;margin-top:4px;display:block">Tap + to log one</span></div>`;
+  let byDate={};
+  fil.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
+  Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(dt=>{
+    const dTot=byDate[dt].reduce((s,e)=>s+toINR(e.amount,e.currency),0);
+    h+=`<div class="sl"><span>${dt}</span><span>₹${Math.round(dTot).toLocaleString()}</span></div>`;
+    byDate[dt].forEach(e=>{
+      const cat=catBy(e.category);
+      const hasLoc=e.lat&&e.lng;
+      const mapsUrl=`https://www.google.com/maps?q=${e.lat},${e.lng}`;
+      h+=`<div class="card"><div class="exp-row">
+        <div class="cat-ic" style="background:${cat.color}25">${cat.icon}</div>
+        <div class="exp-info">
+          <div class="exp-name">${e.details||cat.label}</div>
+          <div class="exp-meta">${cat.label}${e.notes?' · '+e.notes:''} · ${e.time||''}</div>
+          ${hasLoc
+            ?`<button class="loc-btn" onclick="window.open('${mapsUrl}','_blank')">📍 ${e.addr||e.lat+', '+e.lng}</button>`
+            :`<span style="font-size:11px;color:var(--text3)">No location</span>`}
+        </div>
+        <div class="exp-right">
+          <div class="exp-amt">${fmtAmt(e.amount,e.currency)}</div>
+          <div class="exp-inr">≈ ₹${Math.round(toINR(e.amount,e.currency)).toLocaleString()}</div>
+          <button class="del-btn" onclick="delExp(${e.id})">🗑</button>
+        </div>
+      </div></div>`;
+    });
+  });
+  return h;
+}
+
+function delExp(id){
+  if(!confirm('Delete this expense?')) return;
+  expenses=expenses.filter(e=>e.id!==id);
+  persist();renderTab();
+}
+
+function fc(cat){filterCat=cat;renderTab();}
+
+function renderSummary(){
+  if(!expenses.length) return `<div class="empty"><span class="empty-icon">📊</span>No data yet</div>`;
+  let byCat={};CATS.forEach(c=>byCat[c.id]=0);
+  expenses.forEach(e=>byCat[e.category]=(byCat[e.category]||0)+toINR(e.amount,e.currency));
+  const tot=Object.values(byCat).reduce((s,v)=>s+v,0)||1;
+  const catData=CATS.map(c=>({...c,val:byCat[c.id]||0,pct:Math.round((byCat[c.id]||0)/tot*100)})).filter(c=>c.val>0).sort((a,b)=>b.val-a.val);
+  let byDay={};
+  expenses.forEach(e=>byDay[e.date]=(byDay[e.date]||0)+toINR(e.amount,e.currency));
+  const days=Object.keys(byDay).sort();
+  const topCat=catData[0];
+  const avgDay=days.length?Math.round(totalINR(expenses)/days.length):0;
+  return `
+  <div class="card">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Daily spending (₹ INR equiv.)</div>
+    <div class="chart-container"><canvas id="lc"></canvas></div>
+  </div>
+  <div class="card">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">By category</div>
+    <div class="donut-wrap">
+      <div style="position:relative;width:100px;height:100px;flex-shrink:0"><canvas id="dc"></canvas></div>
+      <div class="donut-labels">${catData.map(c=>`<div class="dl-row"><div class="dl-sw" style="background:${c.color}"></div><div class="dl-name">${c.label}</div><div class="dl-pct">${c.pct}%</div></div>`).join('')}</div>
+    </div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-l">Total</div><div class="stat-v">₹${Math.round(totalINR(expenses)).toLocaleString()}</div><div class="stat-s">INR equiv.</div></div>
+    <div class="stat"><div class="stat-l">Expenses</div><div class="stat-v">${expenses.length}</div></div>
+    <div class="stat"><div class="stat-l">Top category</div><div class="stat-v" style="font-size:15px">${topCat?topCat.icon+' '+topCat.label:'—'}</div></div>
+    <div class="stat"><div class="stat-l">Daily avg</div><div class="stat-v" style="font-size:17px">₹${avgDay.toLocaleString()}</div></div>
+  </div>`;
+}
+
+function renderBudget(){
+  let h=`<div style="font-size:12px;color:var(--text3);margin-bottom:12px;margin-top:2px">Toggle budgets on or off per currency.</div>`;
+  CURR.forEach(curr=>{
+    const enabled=budgetEnabled[curr]!==false;
+    const spent=expenses.filter(e=>e.currency===curr).reduce((s,e)=>s+e.amount,0);
+    const bgt=budgets[curr]||0;
+    const pct=bgt>0?Math.min(Math.round(spent/bgt*100),100):0;
+    const col=pct>90?'#e34948':pct>70?'#eda100':'#1baf7a';
+    const rem=Math.max(bgt-spent,0);
+    h+=`<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${enabled?'6px':'0'}">
+        <div>
+          <div style="font-size:14px;font-weight:500">${curr} budget</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${enabled?fmtAmt(rem,curr)+' remaining':'Disabled'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${enabled?`<span style="font-size:13px;font-weight:600;color:${col}">${pct}%</span>`:''}
+          <button class="toggle ${enabled?'on':'off'}" onclick="toggleBgt('${curr}')" aria-label="Toggle ${curr} budget"></button>
+        </div>
+      </div>
+      <div class="${enabled?'':'bgt-disabled'}">
+        <div class="prog-bar-bg"><div class="prog-bar" style="width:${enabled?pct:0}%;background:${col}"></div></div>
+        <div class="prog-footer"><span>${fmtAmt(spent,curr)} spent</span><span>of ${fmtAmt(bgt,curr)}</span></div>
+        <div class="bgt-edit">
+          <input class="bgt-inp" type="number" id="bgt-${curr}" value="${bgt}" placeholder="Set limit">
+          <button class="bgt-save" onclick="saveBgt('${curr}')">Save</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  return h;
+}
+
+function toggleBgt(curr){budgetEnabled[curr]=budgetEnabled[curr]===false?true:false;persist();renderTab();}
+function saveBgt(curr){budgets[curr]=parseFloat(document.getElementById('bgt-'+curr).value)||0;persist();renderTab();}
+
+function renderSettings(){
+  return `
+  <div class="sl" style="margin-top:2px">Trip</div>
+  <div class="set-row">
+    <div class="set-title">Trip name</div>
+    <input class="txt-inp" id="trip-inp" value="${cfg.trip}">
+    <button class="bgt-save" style="margin-top:8px" onclick="saveTripName()">Save</button>
+  </div>
+
+  <div class="sl">Default currency</div>
+  <div class="set-row">
+    <div class="btn-row">${CURR.map(c=>`<button class="curr-btn ${cfg.defCurr===c?'active':''}" onclick="setDC('${c}')">${c}</button>`).join('')}</div>
+    <div class="set-sub" style="margin-top:8px">Auto-detected from GPS; fallback when GPS fails</div>
+  </div>
+
+  <div class="sl">Exchange rates</div>
+  <div class="set-row">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="set-title">${ratesLive?'Live rates active':'Cached rates'}</div>
+        <div class="set-sub">${ratesLive?'Updated at '+ratesUpdated:'Using built-in fallback'}</div>
+      </div>
+      <button class="bgt-save" onclick="fetchRates()">↻ Refresh</button>
+    </div>
+    <div class="rate-section">
+      <div class="rate-row"><span class="rate-key">1 IDR</span><span class="rate-val">= ₹${rates.IDR.toFixed(5)}</span></div>
+      <div class="rate-row"><span class="rate-key">1 INR</span><span class="rate-val">= 1.00000</span></div>
+      <div class="rate-row"><span class="rate-key">1 MYR</span><span class="rate-val">= ₹${rates.MYR.toFixed(3)}</span></div>
+      <div class="rate-row"><span class="rate-key">1 INR</span><span class="rate-val">= ${Math.round(1/rates.IDR)} IDR</span></div>
+    </div>
+  </div>
+
+  <div class="sl">Sync</div>
+  <div class="set-row">
+    <div class="set-title">Google Sheets sync</div>
+    <div class="set-sub" style="margin-bottom:10px">${pending.length} pending · ${expenses.length} total logged</div>
+    <button class="neutral-btn" style="margin-bottom:0" onclick="manualSync()">↻ Sync now</button>
+    <div id="sync-msg" style="font-size:12px;color:var(--text3);margin-top:6px;text-align:center"></div>
+  </div>
+
+  <div class="sl">Export</div>
+  <div class="set-row">
+    <button class="neutral-btn" style="margin-bottom:0" onclick="copyCSV()">⎘ Copy CSV to clipboard</button>
+  </div>
+
+  <div class="sl">Danger zone</div>
+  <div class="set-row">
+    <button class="danger-btn" onclick="if(confirm('Clear pending queue?')){pending=[];persist();renderTab();}">Clear pending queue (${pending.length})</button>
+    <button class="danger-btn" style="margin-bottom:0" onclick="if(confirm('Delete ALL local data? Google Sheets data is safe.')){expenses=[];pending=[];persist();renderTab();}">Delete all local data</button>
+  </div>
+  <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:20px;padding-bottom:8px">Bali Expense Tracker v5 · Built for Karan</div>`;
+}
+
+function saveTripName(){cfg.trip=document.getElementById('trip-inp').value||'Trip';persist();updateHeader();}
+function setDC(c){cfg.defCurr=c;selCurr=c;persist();renderTab();}
+
+async function manualSync(){
+  const el=document.getElementById('sync-msg');
+  if(el) el.textContent='Syncing...';
+  await syncPending();
+  if(el) el.textContent=pending.length===0?'All synced!':pending.length+' still pending';
+  setTimeout(()=>{if(el)el.textContent='';},3000);
+}
+
+function copyCSV(){
+  const csv='Date,Time,Amount,Currency,Category,Details,Notes,Lat,Lng,Address\n'+
+    expenses.map(e=>`${e.date},${e.time||''},${e.amount},${e.currency},${catBy(e.category).label},"${e.details||''}","${e.notes||''}",${e.lat||''},${e.lng||''},"${e.addr||''}"`).join('\n');
+  navigator.clipboard?.writeText(csv).then(()=>alert('CSV copied!')).catch(()=>alert('Copy failed — try sharing instead'));
+}
+
+function renderTab(){
+  const c=document.getElementById('content');
+  if(currentTab==='activity') c.innerHTML=renderActivity();
+  else if(currentTab==='summary'){c.innerHTML=renderSummary();setTimeout(drawCharts,60);}
+  else if(currentTab==='budget') c.innerHTML=renderBudget();
+  else if(currentTab==='settings') c.innerHTML=renderSettings();
+  updateHeader();
+}
+
+function sw(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
+  ['activity','summary','budget','settings'].forEach(t=>{
+    const ni=document.getElementById('ni-'+t);
+    const nl=document.getElementById('nl-'+t);
+    if(ni) ni.classList.toggle('active',t===tab);
+    if(nl) nl.classList.toggle('active',t===tab);
+  });
+  renderTab();
+}
+
+function drawCharts(){
+  let byDay={};
+  expenses.forEach(e=>byDay[e.date]=(byDay[e.date]||0)+toINR(e.amount,e.currency));
+  const days=Object.keys(byDay).sort();
+  const lcEl=document.getElementById('lc');
+  if(lcEl){
+    if(chartL){chartL.destroy();chartL=null;}
+    chartL=new Chart(lcEl,{
+      type:'bar',
+      data:{labels:days.map(d=>d.slice(5)),datasets:[{data:days.map(d=>Math.round(byDay[d])),backgroundColor:'#2a78d620',borderColor:'#2a78d6',borderWidth:2,borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#666',font:{size:10},autoSkip:false,maxRotation:45}},y:{grid:{color:'#2a2a2a'},ticks:{color:'#666',font:{size:10},callback:v=>'₹'+v.toLocaleString()}}}}
+    });
+  }
+  let byCat={};
+  CATS.forEach(c=>byCat[c.id]=0);
+  expenses.forEach(e=>byCat[e.category]=(byCat[e.category]||0)+toINR(e.amount,e.currency));
+  const active=CATS.filter(c=>byCat[c.id]>0);
+  const dcEl=document.getElementById('dc');
+  if(dcEl&&active.length){
+    if(chartD){chartD.destroy();chartD=null;}
+    chartD=new Chart(dcEl,{
+      type:'doughnut',
+      data:{labels:active.map(c=>c.label),datasets:[{data:active.map(c=>Math.round(byCat[c.id])),backgroundColor:active.map(c=>c.color),borderWidth:0,hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false}}}
+    });
+  }
+}
+
+function detectCurr(lat,lng){
+  if(lat>=-11&&lat<=6&&lng>=95&&lng<=141) return 'IDR';
+  if(lat>=1&&lat<=7.5&&lng>=99.6&&lng<=119.3) return 'MYR';
+  return 'INR';
+}
+
+function getLocation(){
+  const sEl=document.getElementById('loc-status');
+  const tEl=document.getElementById('loc-text');
+  if(!navigator.geolocation){
+    if(sEl){sEl.textContent='Unavailable';sEl.className='loc-s err';}
+    return;
+  }
+  if(sEl){sEl.textContent='Getting GPS...';sEl.className='loc-s loading';}
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      modalLat=parseFloat(pos.coords.latitude.toFixed(6));
+      modalLng=parseFloat(pos.coords.longitude.toFixed(6));
+      const dc=detectCurr(modalLat,modalLng);
+      selCurr=dc;
+      const cs=document.getElementById('curr-sel-modal');
+      if(cs) cs.value=dc;
+      if(sEl){sEl.textContent='Got it';sEl.className='loc-s ok';}
+      if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · ${dc} auto-set`;
+      modalAddr=`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`;
+    },
+    ()=>{
+      if(sEl){sEl.textContent='Failed';sEl.className='loc-s err';}
+      if(tEl) tEl.textContent='Could not get location — log manually';
+    },
+    {timeout:12000,enableHighAccuracy:true}
+  );
+}
+
+function openModal(){
+  modalLat=null;modalLng=null;modalAddr='';
+  selCurr=cfg.defCurr||'IDR';
+  const cats=CATS.map(c=>`<div class="cbt ${c.id===selCat?'sel':''}" id="cb-${c.id}" onclick="sc('${c.id}')">${c.icon}<div>${c.label}</div></div>`).join('');
+  const ov=document.createElement('div');
+  ov.id='exp-modal';
+  ov.className='modal-overlay';
+  ov.innerHTML=`<div class="modal">
+    <div class="mhandle"></div>
+    <div class="mtitle">Log expense</div>
+    <div class="amt-row">
+      <select class="curr-sel" id="curr-sel-modal" onchange="selCurr=this.value">
+        ${CURR.map(c=>`<option ${c===selCurr?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <input class="amt-inp" id="amt-inp" type="number" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="fgroup"><div class="flabel">Category</div><div class="cat-grid">${cats}</div></div>
+    <div class="fgroup"><div class="flabel">What for?</div><input class="txt-inp" id="det-inp" placeholder="e.g. Nasi goreng at Warung Ibu" maxlength="80"></div>
+    <div class="fgroup"><div class="flabel">Notes (optional)</div><input class="txt-inp" id="note-inp" placeholder="e.g. near Kuta beach" maxlength="60"></div>
+    <div class="flabel" style="margin-bottom:6px">Location</div>
+    <div class="loc-display">
+      <span style="font-size:16px">📍</span>
+      <div class="loc-text" id="loc-text">Capturing GPS location...</div>
+      <span class="loc-s loading" id="loc-status">—</span>
+      <button class="get-loc-btn" onclick="getLocation()">↻ Retry</button>
+    </div>
+    <button class="sub-btn" onclick="submitExp()">Save expense</button>
+    <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
+  setTimeout(getLocation,200);
+}
+
+function sc(id){
+  selCat=id;
+  document.querySelectorAll('.cbt').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('cb-'+id)?.classList.add('sel');
+}
+
+function closeModal(){document.getElementById('exp-modal')?.remove();}
+
+function submitExp(){
+  const amt=parseFloat(document.getElementById('amt-inp').value);
+  const curr=document.getElementById('curr-sel-modal').value;
+  const det=document.getElementById('det-inp').value.trim();
+  const note=document.getElementById('note-inp').value.trim();
+  if(!amt||amt<=0){alert('Enter an amount first.');return;}
+  const now=new Date();
+  const exp={
+    id:Date.now(),
+    date:now.toISOString().slice(0,10),
+    time:now.toTimeString().slice(0,5),
+    amount:amt,currency:curr,category:selCat,
+    details:det,notes:note,
+    lat:modalLat,lng:modalLng,addr:modalAddr
+  };
+  expenses.unshift(exp);
+  pending.push(exp);
+  persist();
+  closeModal();
+  renderTab();
+  if(cfg.autoSync) syncPending();
+}
+
+async function syncPending(){
+  if(!pending.length||!navigator.onLine) return;
+  for(const exp of [...pending]){
+    try{
+      const cat=catBy(exp.category);
+      const p=new URLSearchParams({
+        date:exp.date,time:exp.time||'',
+        amount:exp.amount,currency:exp.currency,
+        details:exp.details||cat.label,
+        notes:exp.notes||'',
+        address:exp.addr||exp.category,
+        maplink:exp.lat&&exp.lng?`https://maps.google.com/?q=${exp.lat},${exp.lng}`:''
+      });
+      const r=await fetch(SCRIPT_URL+'?'+p.toString());
+      const t=await r.text();
+      if(t.includes('OK')){pending=pending.filter(p=>p.id!==exp.id);persist();}
+    }catch(e){}
+  }
+  updateHeader();
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+window.addEventListener('online',()=>{if(cfg.autoSync)syncPending();});
+
+fetchRates();
+renderTab();
+</script>
+</body>
+</html>
