@@ -2,7 +2,7 @@
   "name": "Bali Expense Tracker",
   "short_name": "Trip Expenses",
   "description": "Track expenses across IDR, INR, MYR with GPS and offline support",
-  "start_url": "/",
+  "start_url": "/bali-tracker/",
   "display": "standalone",
   "background_color": "#0f0f0f",
   "theme_color": "#0f0f0f",
