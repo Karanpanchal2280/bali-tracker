@@ -536,7 +536,7 @@ function getLocation(){
   }
   if(sEl){sEl.textContent='Getting GPS...';sEl.className='loc-s loading';}
   navigator.geolocation.getCurrentPosition(
-    pos=>{
+    async pos=>{
       modalLat=parseFloat(pos.coords.latitude.toFixed(6));
       modalLng=parseFloat(pos.coords.longitude.toFixed(6));
       const dc=detectCurr(modalLat,modalLng);
@@ -544,8 +544,21 @@ function getLocation(){
       const cs=document.getElementById('curr-sel-modal');
       if(cs) cs.value=dc;
       if(sEl){sEl.textContent='Got it';sEl.className='loc-s ok';}
-      if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · ${dc} auto-set`;
-      modalAddr=`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`;
+      if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · looking up place...`;
+      // Reverse geocode using OpenStreetMap
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${modalLat}&lon=${modalLng}&format=json&zoom=18&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+        const d=await r.json();
+        const a=d.address||{};
+        // Build a human-readable place name
+        const place=a.tourism||a.hotel||a.amenity||a.shop||a.building||a.road||a.neighbourhood||a.suburb||'';
+        const area=a.city||a.town||a.village||a.county||'';
+        modalAddr=place?(place+(area?', '+area:'')):(`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`);
+        if(tEl) tEl.textContent=`📍 ${modalAddr} · ${dc} auto-set`;
+      }catch(err){
+        modalAddr=`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`;
+        if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · ${dc} auto-set`;
+      }
     },
     ()=>{
       if(sEl){sEl.textContent='Failed';sEl.className='loc-s err';}
