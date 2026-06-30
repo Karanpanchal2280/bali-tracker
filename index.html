@@ -544,19 +544,21 @@ function getLocation(){
       const cs=document.getElementById('curr-sel-modal');
       if(cs) cs.value=dc;
       if(sEl){sEl.textContent='Got it';sEl.className='loc-s ok';}
-      if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · looking up place...`;
-      // Reverse geocode using OpenStreetMap
+      if(tEl) tEl.textContent=`looking up place...`;
+      modalAddr=`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`;
       try{
-        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${modalLat}&lon=${modalLng}&format=json&zoom=18&addressdetails=1`,{headers:{'Accept-Language':'en'}});
+        const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${modalLat}&longitude=${modalLng}&localityLanguage=en`);
         const d=await r.json();
-        const a=d.address||{};
-        // Build a human-readable place name
-        const place=a.tourism||a.hotel||a.amenity||a.shop||a.building||a.road||a.neighbourhood||a.suburb||'';
-        const area=a.city||a.town||a.village||a.county||'';
-        modalAddr=place?(place+(area?', '+area:'')):(`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`);
-        if(tEl) tEl.textContent=`📍 ${modalAddr} · ${dc} auto-set`;
+        const place=d.locality||d.city||d.principalSubdivision||'';
+        const street=d.localityInfo&&d.localityInfo.administrative&&d.localityInfo.administrative[0]?d.localityInfo.administrative[0].name:'';
+        const name=[street,place].filter(Boolean).join(', ')||place;
+        if(name){
+          modalAddr=name;
+          if(tEl) tEl.textContent=`📍 ${modalAddr} · ${dc} auto-set`;
+        }else{
+          if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · ${dc} auto-set`;
+        }
       }catch(err){
-        modalAddr=`${modalLat.toFixed(4)},${modalLng.toFixed(4)}`;
         if(tEl) tEl.textContent=`${modalLat}, ${modalLng} · ${dc} auto-set`;
       }
     },
@@ -567,7 +569,6 @@ function getLocation(){
     {timeout:12000,enableHighAccuracy:true}
   );
 }
-
 function openModal(){
   modalLat=null;modalLng=null;modalAddr='';
   selCurr=cfg.defCurr||'IDR';
